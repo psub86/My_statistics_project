@@ -1,0 +1,374 @@
+---
+title: "R Notebook"
+output:
+  html_notebook:
+    toc: yes
+    number_sections: yes
+  pdf_document: default
+  html_document:
+    toc: yes
+    df_print: paged
+---
+# Aufgabe 6: Unterschiedshypothese 
+
+## Einlesen der Daten
+
+```{r}
+student <- read.csv("C:/Users/serte/Downloads/student-mat.csv")
+View(student)
+```
+
+## Datensatz und Variable
+
+* Datensatz=student_mat.csv
+* Var 1 = Job der Mutter (Mjob)
+* Var 2 = Abschlussnote des Studenten (G3)
+
+### Beschreibung der Variablen
+
+* G3 (Abschlussnote)
+(numeric: from 0 to 20, output target)
+
+* Mjob (Mutterjob)
+(nominal: 'teacher', 'health' care related, civil 'services' 
+(e.g. administrative or police), 'at_home' or 'other')
+
+```{r}
+### Check Missing Value
+sum(is.na(student))
+sprintf("Coun of Null Values: %d",sum(is.na(student)) )
+```
+
+```{r}
+summary(student)
+```
+
+# Aufgabenstellung: Einfaktoriellen Varianzanalyse ohne Messwiederholung
+
+## Hypothese 
+
+Der einfaktoriellen Varianzanalyse Hypothese
+
+H1: Die Jobs der Mütter (Mjob-Teacher, Health, Services (e.g. administrative or police), At_home or Other) 
+haben einen Einfluss auf den Mittelwertunterschied der Abschlussnoten der Studenten (G3). 
+
+  
+$$M_T≠M_H≠M_S≠M_A≠M_O  \rightarrow \text{für min. einen Vergleich}$$
+
+H0:  Die Jobs der Mütter  (Mjob- Teacher, Health, Services (e.g. administrative or police), At_home or Other) 
+haben keinen Einfluss auf den Mittelwertunterschied der Abschlussnoten der Studenten (G3). 
+
+$$M_T = M_H = M_S = M_A = M_O $$
+
+## Voraussetzungen für die einfaktoriellen Varianzanalyse ohne Messwiederholung
+
+✓	Die abhängige Variable "Abschlussnote" ist intervallskaliert.
+--> 'Abschlussnote' ist metrisch.  
+
+✓Die unabhängige Variable (bzw. Faktor) 'Mutterjob(Mjob)' ist kategorial (nominal- oder ordinalskaliert)  
+--> Der 'Mutterjob' (Teacher, Health, Services (e.g. administrative or police), At_home or Other) ist nominalskaliert.
+
+✓	Die durch den Faktor gebildeten Gruppen sind unabhängig. 
+--> Es bildet sich fünf unabhängige Gruppen.
+
+✓	Die abhängige Variablen ist normalverteilt innerhalb jeder der Gruppen 
+(Ab > 25 Probanden pro Gruppe sind Verletzungen in der Regel unproblematisch)
+--> Siehe Histogramm
+
+✓ Homogenität der Varianzen: Die Gruppen stammen aus Grundgesamtheiten mit annähernd identischen Varianzen der abhängigen Variablen -> Levene-Test
+--> siehe Levene-Test (Korrektur mit Welch-Test muss durchgeführt werden, siehe unten)
+
+
+Wir haben vorher festgestellt, dass Abschlussnote circa 40 Nullwerte (die Schüler, die den Kurs nicht bestanden haben,) haben.Deswegen haben wir diese Note von unserem Datensatz herausgenommen. Dadurch haben wir keine Outlier mehr.
+
+```{r}
+student <- student[student$G3!= 0, ]
+```
+
+```{r}
+colSums(student == 0)
+```
+### Normalverteilung (Histogramm)
+
+```{r}
+#library(car)
+#library(dplyr)
+
+```
+
+```{r}
+library(ggplot2)
+student %>%
+  group_by(Mjob) %>%
+  ggplot(aes(G3, color=Mjob)) + 
+  geom_histogram(aes(fill = Mjob), bins =10) +
+  facet_wrap(~Mjob) +
+  theme_grey()+
+  labs(x= "Abschlussnote",y = "Anzahl" )
+```
+Die Daten sind normalverteilt, wenn auch nicht perfekt.
+
+### Alternative QQPlot
+
+```{r}
+qqPlot(G3 ~ Mjob, data=student, 
+       layout=c(1, 5))
+```
+Es liegt eine Normalverteilung vor.
+
+## Grundlegende Konzepte: Was ist die einfaktoriellen Varianzanalyse ohne Messwiederholung
+
+* Die einfaktorielle Varianzanalyse – auch "einfaktorielle ANOVA", da in Englisch "Analysis of Variance" – testet, ob sich die Mittelwerte mehrerer unabhängiger Gruppen (oder Stichproben) unterscheiden, die durch eine kategoriale unabhängige Variable definiert werden. 
+* Diese kategoriale unabhängige Variable wird im Kontext der Varianzanalyse als "Faktor" bezeichnet. Entsprechend werden die Ausprägungen der unabhängigen Variable "Faktorstufen" genannt, wobei auch der Begriff der "Treatments" gebräuchlich ist. 
+
+* Als "einfaktoriell" wird eine Varianzanalyse bezeichnet, wenn sie lediglich einen Faktor, also eine Gruppierungsvariable, verwendet mehrfaktorielle Varianzanalyse.
+
+## Boxplot
+
+
+```{r}
+# Erstellen wir Boxplot, um Ausreißer zu finden und wenn möglich einen Pattern zu erkennen.
+boxplot(student$G3 ~student$Mjob, main = "Boxplots zum Vergleich", ylab = "Abschlussnote", xlab= "Mutterjob" , col = c("lightgreen", "deepskyblue","tomato", "orange","blue"))
+```
+```{r}
+# Um die Verteilung genauer zu sehen
+a <- ggplot(data = student, aes(x = Mjob, y = G3)) +
+geom_boxplot(fill = c("lightgreen", "deepskyblue","tomato", "orange","blue"),
+            outlier.color = NULL) +
+            theme_classic() +
+            theme(legend.position = "none")+
+            geom_jitter(color="black", size=0.4, alpha=0.9)+
+            coord_flip()
+show(a)
+```
+Folgende zwei Aussagen sind hier wichtig:  
+  - Boxplots zeigen hier keine Ausreisser. 
+  - Die Verteilungen scheinen sich nicht deutlich von einander zu unterscheiden.
+
+Pattern:
+Die Jobs der Mütter 'Health', 'Services' und 'Teacher' haben einen kleinen positiven Einfluss auf der Abschlussnoten.
+(Erste Gruppe:'Health', 'Services' und 'Teacher')
+
+Die Jobs der Mütter 'at_home' und 'other' haben weniger Einfluss auf die Abschlussnoten als die erste Gruppe. 
+(Zweite Gruppe:'at_home' und 'other')
+
+Wir werden es bei Post-Hoc-Tests genauer überprüfen.
+
+## Deskriptive Statistiken 
+
+```{r}
+student %>%
+group_by(Mjob) %>%
+  summarize(Anzahl = n(), Mittelwert = mean(G3), Median = median(G3), Standardabweichung = sd(G3)) %>%
+  mutate_if(is.numeric, round, 2)
+```
+* Es gibt einen kleinen Mittelwertsunterschied zwischen den Gruppen. Jobart "Health" (M = 12.91, SD = 2.99, n=32) hat mehr Einfluss auf Abschlussnote, gefolgt von Jobart Services (M= 12.07, SD = 3.46, n=94) und Jobart Teacher (M= 11.87, SD = 3.30, n=54).   
+
+* Jobart "At_home" (M= 10.80, SD = 2.89, n=50) und "Other"(M= 10.91, SD = 3.04, n=127) haben ähnlichen Einfluss auf die Abschlussnote der Studenten.
+
+* Die Reihenfolge der Jobs wird in folgendem dargestellt. Zwischen des Jobs Health und At_home gibt es 2.11 Mittelwertunterschied. 
+
+Health        (M = 12.91,  SD = 2.99, n=32)
+
+Services      (M = 12.07,  SD = 3.46, n=94)
+Teacher       (M = 11.87,  SD = 3.30, n=54)
+
+Other         (M = 10.91,  SD = 3.04, n=127)
+At_home       (M = 10.80,  SD = 2.89, n=50)
+
+* Wie bereits beim Boxplot zu erkennen war, ist der Abstand der Mittelwert der Jobart "Health", "Services" und "Teacher" ähnlich ausgefallen. Gleiches gilt für den Jobart "At_home" und "Other". 
+
+## Prüfung der Varianzhomogenität (Levene-Test)
+
+```{r}
+student$Mjob <- factor(student$Mjob , levels = unique(student$Mjob))
+```
+
+```{r}
+leveneTest(student$G3 ~ student$Mjob, center="mean")
+```
+Im vorliegenden Beispiel ist der Levene-Test NICHT signifikant(F(4,352) = 1.279, p = 0.2775), so dass von Varianzhomogenität ausgegangen werden kann. Das heißt - es muss Ohne Welch-Korrektur durchgeführt werden.
+
+Mit Welch-Korrektur: p < 0.05 => Ergebnis Signifikant –> Varianzen heterogen
+
+Ohne Welch-Korrektur: p > 0.05 => Ergebnis nicht Signifikant –> Varianzen homogen –> H0 mit Annahme Var1=Var2=… -> Var_n wird angenommen.
+
+Deswegen sollten wir Ohne Welch-Korrektur durchführen.
+
+## Ergebnisse der einfaktoriellen Varianzanalyse ohne Messwiederholung
+
+```{r}
+ANOVA <- aov(data=student, student$G3~student$Mjob)
+summary(ANOVA)
+
+```
+Das Gesamtmodel ist signifikant geworden (F(4,352) = 4.25 , p = 0.002). 
+
+Allerdings lässt sich aufgrund dieses Tests nicht bestimmen, welche der vier Gruppen sich signifikant voneinander unterscheiden. Es ist denkbar, dass sich lediglich ein Paar signifikant unterscheidet und zwischen den übrigen keine signifikanten Unterschiede vorliegen. Daher wird ein Post-hoc-Test durchgeführt.
+
+## Post-hoc-Tests
+
+* Multiple Tests sind jedoch problematisch, da der Alpha-Fehler (die fälschliche Ablehnung der Nullhypothese) mit der Anzahl der Vergleiche steigt.
+
+* Wird nur ein t-Test mit einem Signifikanzlevel von 0.05 durchgeführt, so beträgt die Wahrscheinlichkeit des Nicht-Eintreffens des Alpha-Fehlers 95 Prozent. 
+
+* Werden jedoch sechs solcher Paarvergleiche vorgenommen, so beträgt die Nicht-Eintreffens-Wahrscheinlichkeit 
+des Alpha-Fehlers (0.95)^10 = 0.598. 
+
+* Um die Wahrscheinlichkeit des Eintreffens des Alpha-Fehlers zu bestimmen, wird 1 - 0.598 = 0.402 gerechnet. 
+
+* Die Wahrscheinlichkeit des Eintreffens des Alpha-Fehlers liegt somit bei 40.2 Prozent. 
+Diese Fehlerwahrscheinlichkeit wird als "Familywise Error Rate" bezeichnet.
+
+* Um dieses Problem zu beheben kann zum Beispiel die Tukey-Analyse angewendet werden. 
+
+* R berückstichtigt bei "TukeyHSD" diesen Fehler (95% Family-Wise Confidence Level) und wir können damit quasi wieder auf 0.05 prüfen.
+
+### Die Berechnung der Anzahl der Post-hoc-tests
+
+$$ \frac{k\cdot(k-1)} {2}=\frac{5\cdot(5-1)}{2}=\frac{20}{2}= 10$$
+
+```{r}
+TukeyHSD(aov(data=student, student$G3~student$Mjob))
+```
+Ergebnis:
+
+* Nur "Health", "At_Home" (p=0.0291222) Jobarten und "Other", "Health"  (p=0.0133487) Jobarten  unterscheiden sich signifikant von einander. (p < .05)
+
+* Die anderen Jobarten unterscheiden sich nicht voneinander. (p > .05)
+
+* Weil "Health", "Services", "Teacher" und "At_Home", "Other", "Services", "Teacher" unterscheiden sich nicht voneinander,
+bildet es sich keine unabhängige/ generalisierbare Gruppe.
+
+
+```{r}
+library(multcompView)
+model=lm(student$G3 ~ student$Mjob )
+
+ANOVA=aov(model)
+ 
+# Tukey test to study each pair of treatment :
+TUKEY <- TukeyHSD(x=ANOVA, "student$Mjob", conf.level=0.95)
+TUKEY 
+
+# Tuckey test representation :
+plot(TUKEY , las=1 , col="darkblue")
+
+
+generate_label_df <- function(TUKEY, variable){
+     Tukey.levels <- TUKEY[[variable]][,4]
+     Tukey.labels <- data.frame(multcompLetters(Tukey.levels)['Letters'])
+     Tukey.labels$treatment=rownames(Tukey.labels)
+     Tukey.labels=Tukey.labels[order(Tukey.labels$treatment) , ]
+     return(Tukey.labels)
+     }
+ 
+LABELS <- generate_label_df(TUKEY , "student$Mjob")
+
+table(LABELS)
+``` 
+
+## Profildiagramm
+
+```{r}
+ggplot(student, aes(x=Mjob, y=G3, group=1))+
+  stat_summary(fun.y = mean, geom="point", size=3)+
+  stat_summary(fun.y = mean, geom="line")+
+  stat_summary(fun.data = mean_cl_normal, geom="errorbar",width=.2, size=.25)+
+  labs(x="Mutterjob", y="Abschlussnote")+
+  theme_classic()
+```
+Profildiagram bestätigt den Tukeytest. 
+
+  -Health, Services und Teacher haben ähnliche Werte. 
+  -Gleicherweise haben At_home, Other, Services und Teacher haben ähnliche Werte. 
+
+## Berechnung der Effektstärke
+
+Um die Bedeutsamkeit eines Ergebnisses zu beurteilen, werden Effektstärken berechnet. Im Beispiel sind zwar einige der Mittelwertsunterschiede zwar signifikant, doch es stellt sich die Frage, ob sie gross genug sind, um als bedeutend eingestuft zu werden.
+
+###  Das partielle Eta-Quadrat
+
+* Das partielle Eta-Quadrat (partielles η2) ist ein Mass für die Effektgrösse: Es setzt die Variation, die durch einen Faktor erklärt wird, in Bezug mit jener Variation, die nicht durch andere Faktoren im Modell erklärt wird. Das heisst, es wird ausschliesslich jene Variation betrachtet, welche nicht durch die anderen Faktoren im Modell erklärt wird. 
+
+* Das partielle Eta-Quadrat zeigt, welchen Anteil davon ein Faktor erklärt. Im Falle der einfaktoriellen Varianzanalyse ist das partielle Eta-Quadrat ist jener Anteil der korrigierten Gesamtvariation, der durch das Modell erklärt wird.
+
+$$\eta^2 =\frac{QS_{Zwischen}}{QS_{total}}$$
+$$\eta^2_{par.} =\frac{QS_{Zwischen}}{QS_{zwischen}+QS_{innerhalb}}$$
+```{r}
+library(effectsize)
+
+eta <- effectsize::eta_squared(aov(data=student, student$G3~student$Mjob), partial = TRUE)
+eta
+
+```
+```{r}
+eta$Eta2
+```
+
+*Hinweis:* Im vorliegenden Beispiel beträgt das partielle Eta-Quadrat 0.05. Das heißt, es wird 5% der Variation in der Abschlussnote durch die Jobart der Mutter aufgeklärt. Das partielle Eta² wird gerundet."90% CI" beschreibt das Konfidenzintervall für 90 %. Dieses liegt hier zwischen 1% und 8%.
+
+
+### Effektstärke
+
+Es gibt verschiedene Arten die Effektstärke zu messen. Zu den bekanntesten zählen die Effektstärke von Cohen (d) und der Korrelationskoeffizient (r) von Pearson.
+
+Da R das partielle Eta-Quadrat ausgibt, wird dieses hier in die Effektstärke nach Cohen (1988) umgerechnet. In diesem Fall befindet sich die Effektstärke immer zwischen 0 und unendlich.
+
+$$f=\sqrt\frac{eta^{2}}{1-eta^{2}}$$
+
+```{r}
+eff <- sqrt(eta$Eta2 /(1-eta$Eta2))
+
+sprintf("Effektstärke ist f: %.2f",eff)
+
+```
+
+Um zu beurteilen, wie gross dieser Effekt ist, kann man sich an der Einteilung von Cohen (1988) orientieren:
+
+$$\begin{align}
+\text{Schwacher Effekt: } 0.10 &< ||f|| < 0.25             \\
+\text{Schwacher bis mittlerer Effekt: } 0.25 &= ||f||      \\
+\text{Mittlerer Effekt: } 0.25 &< ||f|| < 0.40             \\
+\text{Mittlerer bis starker Effekt: }0.40 &= ||f||         \\
+\text{Starker Effekt: } 0.40 &< ||f||        
+\end{align}$$
+
+Hinweis: Diese Beispiel ist sehr sauber und etwas “zu” eindeutig. Damit entspricht eine Effektstärke von 0.22 einem schwachen Effekt.
+
+## Eine Aussage
+
+* Jobarten der Mütter haben einen signifikanten Einfluss auf die Abschlussnote (F(4,352) = 4.25 , p = 0.002). 
+
+* **5 % der Streuung der Abschlussnoten** um den Gesamtmittelwert kann durch die Jobart der Mütter erklärt werden. 
+
+* Die Effektstärke **nach Cohen (1988)** liegt bei f = 0.22 und entspricht einem **schwachen Effekt**. 
+
+* Post-hoc-Tests mit Tukey zeigen, dass sich **keine unabhängige/ generalisierbare Gruppe** bilden lassen: 
+  
+  - Nur "Health", "At_Home" (p=0.0291222) Jobarten und "Other", "Health"  (p=0.0133487) Jobarten  unterscheiden sich signifikant von einander. (p < .05)
+
+  - Die anderen Jobarten unterscheiden sich nicht voneinander. (p > .05)
+ 
+  - Weil "Health", "Services", "Teacher" und "At_Home", "Other", "Services", "Teacher" unterscheiden sich nicht voneinander,bildet es sich keine unabhängige/ generalisierbare Gruppe.
+
+* Somit wird insgesamt **H0 wird abgelehnt und H1 angenommen**. Trotzdem bildet sich keine unabhängige / generalisierbare Gruppe.
+
+*Was ist Signifikant? Was ist NICHT Signifikant?*
+
+  + Aus dem Post-hoc-Test kann festgehalten werden, dass nur 
+
+    - "Health", "At_Home" (p=0.0291222) Jobarten und 
+
+    - "Other", "Health"  (p=0.0133487) Jobarten  unterscheiden sich signifikant voneinander. 
+    
+    - Die anderen Jobarten unterscheiden sich nicht voneinander.(p > .05). 
+
+*Generalisierbarkeit /Unabhängigkeit  - global? *
+
+   + Es können sich keine unabhängige / generalisierbare  Gruppen von Jobarten der Mütter gebildet werden.
+
+*Gruppenbildung? *
+    
+   + Es bildet sich keine Gruppe. 
+

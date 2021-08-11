@@ -1,0 +1,277 @@
+---
+title: "T_Test For Dependent Variable - First Semester grade- G1 And Final semester Grade- G3"
+output: html_notebook
+---
+
+# Aufgabe 5: Unterschiedshypothese 
+
+
+## Reading of the Dataset-Student
+
+```{r}
+student <- read.csv("student-mat.csv")
+View(student)
+```
+
+G1
+First Semster grade (numeric: from 0 to 20)
+
+G2
+Second Semster grade (numeric: from 0 to 20)
+
+G3
+Final semster grade (numeric: from 0 to 20, output target)
+
+### Dataset: "student-mat.csv"
+
+
+### Var 1 = First semester grade (G1)  
+### Var 2 = Final Semster grade  (G3)
+
+
+
+"Dependent samples" are used when the measured value and a certain other measured value influence each other.
+i.e when two measured value influence each other
+
+In the following situations that are suitable for a related sample.
+
+Repeat measurement:(Messweiderholung):
+The measured values come from the same person,(here Student) 
+e.g. value of First measurement time compared with value of second measurement time .
+Here ,First semster Grade is compared with Final semster Grade
+
+Natural couples:
+The measured values come from different people who belong together: wife - husband, psychologist - patient or twins.
+
+Matching:
+The measured values also come from different people who have been assigned to one another. Matching pairs are formed on the basis of a comparable value (third variable).
+
+
+
+## Task
+
+## 1)	Hypothese 
+
+H0: There is no difference between  first semester Grade (G1) and the final semester grade of the student (G3)
+
+
+H1: There is a difference between   first semester Grade (G1) and the final semester grade of the student (G3)
+
+
+
+
+## 2) Requirements of the t-test for dependent samples
+
+
+* The dependent variable G1 (first semester grade of the student) and G3 (final grade of the student) are interval-scaled and metric.  
+
+
+
+* There are two related samples or groups, but the different pairs of measured values are independent of each other.
+
+* Grades (G1 and G3) are two different measurements as the dependent variable linked to the independent variable- Student.
+
+* The differences between the associated test values are normally distributed in the population (with samples> 30, violation are not a problem)
+
+
+
+### Proof for the normal distribution (histogram)
+
+First, we check the normal distribution of the individual grades. The grade of the first semester is the student (G1) and the final grade is the student (G3).
+
+```{r}
+hist(student$G1, xlab = "First Semester Grade", ylab= "count", main ="Histogramm of First Semester Grade", breaks = 10,  col = "skyblue")
+
+```
+
+```{r}
+hist(student$G3, xlab = "Final Grade", ylab= "Count", main ="Histogramm of Final Grade", breaks = 12,  col = "skyblue")
+
+```
+We found that final grade has approimately 40 zero values (the students who failed the attend the Exam).
+That is why we have removed this Grade-0 from our data set. so, we don't have any outliers anymore.
+
+
+```{r}
+student <- student[student$G3!= 0, ]
+```
+
+```{r}
+colSums(student == 0)
+```
+```{r}
+hist(student$G3, xlab = "Final Grade", ylab= "Count", main ="Histogramm of Final Grade", breaks = 12,  col = "skyblue")
+
+```
+
+```{r}
+
+# We should first check the histogram of the difference as a requirement of the t-test for dependent samples.
+zwischen <- student$G1 - student$G3 
+zwischen
+```
+
+
+# The "Difference" column is added to the record
+```{r}
+
+student <- cbind(student, "Differenz" = zwischen)
+View(student)
+```
+
+```{r}
+hist(student$Differenz, xlab = "Difference between First Semster Grade and Final semster Grade", ylab= "Count", main ="Histogramm of Differenz", breaks =6,  col = "skyblue")
+```
+As per our requirement the difference between the two dependent variable are normally distributed.
+
+
+
+### Proof for the normal distribution (qqPlot)
+
+
+```{r}
+library(car)
+```
+
+
+```{r}
+qqPlot(student$Differenz, main = "QQPlot for the Var. Differenz")
+```
+There is a normal distribution.
+
+## 3) Basic Concepts: What is t-test for dependent samples?
+
+* The t-test for dependent samples checks whether the means of two dependent / paired samples are different.
+"Dependent samples" are used when the measured value and a certain other measured value influence each other. In the following situations that are suitable for a related sample.
+
+
+Repeat measurement:
+The measured values come from the same person, e.g. measurement time # 1 compared to measurement time # 2.
+
+Natural couples:
+The measured values come from different people who belong together: wife - husband, psychologist - patient or twins.
+
+Matching:
+The measured values also come from different people who have been assigned to one another. Matching pairs are formed on the basis of a comparable value (third variable).
+
+
+
+## 4) Descriptive Statistics and Correlation
+
+
+
+### Descriptive Statistics
+```{r}
+library(psych)
+psych::describe(student)
+```
+
+- It Shows, that there is almost no difference in mean values( very very less difference) (difference mean = -0.25) between the grade of the first semester of the students (G1) and the final grade of the students (G3). 
+- In general, the mean values do not differ. 
+- The mean value of the student's first semester grade (G1) is 11.27 (SD = 3.24, n = 357), 
+  whereas the mean value of the student's final grade  (G3) is 11.52 (SD = 3.23, n = 357).
+
+
+### scatterplot
+```{r}
+#library(car)
+scatterplot(student$G3 ~ student$G1 , main = "Scatter plot between the first semester grade and the Final Semster grade", xlab = "Final Semester Grade", ylab= "First Semster Grade")
+```
+From scatter plot we can see that the mean of the  First Semster Grade and Final Semester Grade has very small difference.
+
+
+### Correlation
+```{r}
+test <- cor.test(student$G3, student$G1)
+test
+```
+Findings:
+The grade of the first semester of the students (G1) and the final grade of the students correlate positively-linearly significantly
+(r = .89, p <2.2e-16, n = 357).
+
+- In this case of repeated measurements, it is possible that the  first semester Grade of the students (G1) and the final grade of the students (or a pair of measured values) correlate with one another.
+- It is possbile that two connected measurements (grades) are similar and that there are smaller differences within a pair of measurements than between the pairs.
+
+- From the R output , The Pearson correlation of the two measurement times shows a very high correlation of r=.89 (p <2.2e-16, n = 357).
+
+
+
+
+## 5) Results of the t-test for dependent samples :
+
+** alternative = "two.sided" ** uses an undirected hypothesis and tests two-sided. If the hypothesis is formulated in a directional manner, "less" or "greater" can also be used. The direction depends on the coding.
+
+
+** paired = TRUE ** must be avoided if the sample is connected. The ** "conf.level = .95" ** describes that an Alphanivau of 0.05 is used.
+
+```{r}
+testVER<- t.test(student$G1, student$G3, alternative = "two.sided", paired = TRUE, conf.level = .95)
+
+testVER
+```
+Findings:
+- The test statistic is t = -3.2012 and the associated significance value p = 0.001492.
+
+- The difference is significant: The mean values of the two measurement times (the grade of the first semester of the students (G1) and the final grade of the students) differ (t (356) = -3.2012 , p = 0.001492, n = 357).
+
+
+
+## 6) Calculation of the effect size
+
+
+The effect size is a measure of the strength of a treatment or phenomenon. Effect sizes are therefore one of the most important parameters in empirical studies. To assess the practical significance, there are various effect size measures that help in interpreting the size of an effect.
+
+## Cohen und Pearson
+
+```{r}
+eff1 <- sqrt(testVER$statistic^2 / (testVER$statistic^2 + testVER$parameter))
+
+sprintf("Effektstärke: %.4f",eff1)
+```
+
+The classification by Cohen (1992) is used to assess the size of the effect:
+
+$$\begin{align}
+\text{Schwacher Effekt: } 0.10 &< ||r|| < 0.30             \\
+\text{Schwacher bis mittlerer Effekt: } 0.30 &= ||r||      \\
+\text{Mittlerer Effekt: } 0.30 &< ||r|| < 0.50             \\
+\text{Mittlerer bis starker Effekt: }0.50 &= ||r||         \\
+\text{Starker Effekt: } 0.50 &< ||r||        
+\end{align}$$
+
+
+
+This means that a weak effect size corresponds to an effect size of 0.167.
+
+## Alternative (Hedges g)
+
+```{r}
+diff <- testVER$estimate
+
+sed <- sd(student$G1 - student$G3)
+
+g <- diff/sed
+
+sprintf("Effektstärke: %.4f",g)
+
+```
+This means that a weak effect size corresponds to an effect size of 0.169.
+
+## 7) statement
+
+* It Shows, that the grade of the first semester of the students (G1) and the final grade of the students **differ statistically significantly** (t(356) = -3.2012 , p = 0.001492, n = 357).
+
+-  The final grade is better   (M = 11.52, SD = 3.44) than the  
+   grade of the first semester (M = 11.27, SD = 3.24). 
+
+-  Though the effect size according to Cohen (1992) is r = 0.167 and thus corresponds to a weaker effect, it is in our given range. H0 can be discarded.
+
+
+* So here we **Reject H0 and Accept H1**
+
+
+* There is difference in First semester Grade (G1) and Final semster Grade (G3) - H1
+
+* Even in our real time we can see students do better in the final Exam than the first semester.
+
+

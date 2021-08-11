@@ -1,0 +1,174 @@
+---
+title: "Independent Two-Sample t-test"
+output: html_notebook
+---
+
+## Aufgabe 4: Unterschiedshypothese 
+
+```{r}
+student <- read.csv("student-mat.csv")
+View(student)
+```
+## Explanation of Columns
+
+
+schoolsup:
+Extra educational support
+
+G3:
+Final grade (numeric: from 0 to 20, output target)
+
+
+
+ **Var1 (Dependent variable) = G3 (final grade)**
+ 
+ **Var2 (Independent variable) = schoolsup (yes and no)**
+
+
+
+
+## 1)	Hypothese 
+
+H1:There is a difference between the final grades with and without extra educational support. $M_{yes}≠M_{no}$
+
+H0:There is no difference between the final grades with and without extra educational support. $M_{yes}=M_{no}$
+
+
+## 2)	Voraussetzungen des t-Tests für unabhängige Stichproben
+
+Die abhängige Variable ist min. intervallskaliert -> Ja, G3 ist metric.
+
+Es liegt eine unabhängige Variable vor, mittels der die beiden zu vergleichenden Gruppen gebildet werden. -> Ja, schoolsup (yes or no)
+
+Das untersuchte Merkmal ist in den Grundgesamtheiten der beiden Gruppen normalverteilt -> siehe Histogramm
+
+Homogenität der Varianzen: Die Gruppen kommen aus Grundgesamtheiten mit annähernd identischer Varianz -> siehe Levene-Test
+
+Die einzelnen Messwerte sind voneinander unabhängig (das Verhalten einer Versuchsperson hat keinen Einfluss auf das Verhalten einer anderen) -> Ja, Es ist mit support oder nicht.
+
+
+## 3)	Grundlegende Konzepte: Was ist t-Test für unabhängige Stichproben? 
+
+Der t-Test für unabhängige Stichproben testet, ob die Mittelwerte zweier unabhängiger Stichproben verschieden sind.
+
+Die Fragestellung des t-Tests für unabhängige Stichproben wird oft so verkürzt: “Unterscheiden sich die Mittelwerte zweier unabhängiger Stichproben?”
+
+### Prüfung der Normalverteilung mithilfe des Histogramms
+
+
+
+```{r}
+hist(student$G3, xlab = "Final semeter grade", ylab= "Anzahl", main ="Histogram of the final grade", breaks = 20,  col = "skyblue")
+
+```
+ A number of the 0-graded pupils means absence from the tests, So we drop the observations that are 0 in the G3 variable
+
+```{r}
+student <- student[student$G3!= 0, ]
+```
+
+```{r}
+hist(student$G3, xlab = "Final semeter grade", ylab= "Anzahl", main ="Histogram of the final grade", breaks = 20,  col = "skyblue")
+
+```
+The distribution of G3 is normal.
+
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+  student %>%
+  group_by(schoolsup) %>%
+  ggplot(aes(G3)) + 
+    geom_histogram( binwidth=2, aes(fill=schoolsup), color="#e9ecef", alpha=0.7 ) + # Erstelle ein Histogramm, Unterteilung, Farbe + Transparenz
+   facet_wrap(~schoolsup)+ # Zwei Graphen
+    theme_classic()+ #Farbschema
+    labs(x="Gruppierungen", y="Anzahl") # Beschriftung
+```
+They have normal distribution in both sample.
+
+
+```{r}
+library(car)
+qqPlot(G3 ~ schoolsup, data=student,layout=c(1, 2))
+```
+We also confirm the normality through qqplot.
+
+## 4)	Deskriptive Statistiken
+
+```{r}
+library(dplyr)
+student %>%
+group_by(schoolsup) %>%
+  summarize(Anzahl = n(), Mittelwert = mean(G3), Median = median(G3), Standardabweichung = sd(G3)) %>%
+  mutate_if(is.numeric, round, 2)
+```
+There is a difference in mean values for this question. The final grade of students without extra educational support is higher (M = 11.83 SD = 3.22, n = 307) than those with educational support (M = 9.62 SD = 2.55, n = 50).
+
+
+
+## 5)	Test auf Varianzhomogenität (Levene-Test)
+
+```{r}
+student$schoolsup <- factor(student$schoolsup , levels = unique(student$schoolsup))
+```
+```{r}
+library(car)
+
+leveneTest(student$G3, student$schoolsup, center = mean)
+```
+So it is recognized that there is a heterogeneity since the Levene test is significant. Therefore we can not assume the same variances (F (1, 355) = 5.8228, p = 0.01633). It is therefore necessary to carry out a Welch correction.
+
+With Welch correction: p <0.05 => result significant -> variances heterogeneous
+
+Without Welch correction: p> 0.05 => result not significant -> variances homogeneous -> H0 with assumption Var1 = Var2
+
+## 6) Ergebnisse des t-Tests für unabhängige Stichproben (mit Welch-Korrektur)
+
+```{r}
+##ungerichtete Hypothese
+test1<- t.test(student$G3~student$schoolsup, var.eq = F, con= 0.95, alt = "two.sided")
+test1
+```
+The test statistic is t = -5.4608 and the associated significance value is p = 5.614e-07. So the difference is significant:
+The mean values of the final grades for these two situations( with and without schoolsup) differs (t (355) =  -5.4608, p = 5.614e-07, n = 357)
+
+
+## 7)	Berechnung der Effektstärke
+
+### Bei ungleichgroßen Gruppen
+
+$$d = (\frac {n1+n2}{n1*n2}+ 0.5*d^2/df) * (\frac{(n1+n2}{df})$$
+```{r}
+
+effsize::cohen.d(d = student$G3, f= student$schoolsup)
+```
+Interpretation von d nach Cohen (1988):
+$$
+\begin{align}
+\text{Schwacher Effekt: } 0.20 &< ||d|| < 0.50             \\
+\text{Schwacher bis mittlerer Effekt: } 0.50 &= ||d||      \\
+\text{Mittlerer Effekt: } 0.50 &< ||d|| < 0.80             \\
+\text{Mittlerer bis starker Effekt: }0.80 &= ||d||         \\
+\text{Starker Effekt: } 0.80 &< ||d||        
+\end{align}
+$$
+
+There is a |effect size| of 0.7 which is a middle effect size.
+
+
+## 8)	Eine Aussage
+
+Students who are not using educational support have significantly better final grade (M = 11.83 SD = 3.22, n = 307) than those who are using educational support (M = 9.62 SD = 2.55, n = 50) (t (355) =  -5.4608, p = 5.614e-07, n = 357). The |effect size| is r = 0.7 and thus corresponds to a middle effect size according to Cohen (1992). H0 is rejected and H1 is accepted
+
+
+
+ 
+
+
+
+
+
+
